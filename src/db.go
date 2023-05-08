@@ -25,7 +25,7 @@ func (q Quiz) String() string {
 	case MCQ:
 		return "MCQ"
 	}
-	return "unknown"
+	return "Unknown"
 }
 
 func createDeck(n string, t Quiz) error {
@@ -46,30 +46,83 @@ func createDeck(n string, t Quiz) error {
 	return nil
 }
 
-func parseDeck(n string) (*sql.DB, error) {
+func openDeck(n string) (*sql.DB, Quiz, error) {
+	var q Quiz
 	if n[:4] != "CRD_" && n[:4] != "MCQ_" {
-		return nil, errors.New("Invalid Database Type! Must be MCQ or CRD")
+		return nil, Undefined, errors.New("Invalid Database Type! Must be MCQ or CRD")
+	}
+	if n[:3] == "CRD" {
+		q = Card
+	} else {
+		q = MCQ
 	}
 	file := ROOT + "/" + n
 	db, err := sql.Open("sqlite", file)
 	if err != nil {
-		return nil, err
+		return nil, Undefined, err
 	}
 	_, err = db.Exec("Select * from cards")
 	if err != nil {
 		db.Close()
-		return nil, errors.New(fmt.Sprintf("Illegal Database: %s", file))
+		return nil, Undefined, errors.New(fmt.Sprintf("Illegal Database: %s", file))
 	}
-	return db, nil
+	return db, q, nil
 }
 
-func insertItem(n CardItem /*, db *sql.DB*/) error {
+func parseDeck(db *sql.DB, q Quiz) ([]ItemInterface, error) {
+	var deck []ItemInterface
+	switch q {
+	case Card:
+		rows, err := db.Query("select question, answer from cards")
+		if err != nil {
+			return nil, err
+		}
+		for rows.Next() {
+			var r CardItem
+			err = rows.Scan(&r.Question, &r.Answer)
+			if err != nil {
+				return nil, err
+			}
+			deck = append(deck, r)
+		}
+	case MCQ:
+		rows, err := db.Query("select question, options, answer from cards")
+		if err != nil {
+			return nil, err
+		}
+		for rows.Next() {
+			var r MCQItem
+			var optionsString string
+			err = rows.Scan(&r.Question, &optionsString, &r.Answer)
+			if err != nil {
+				return nil, err
+			}
+			r.Options = strings.Split(optionsString, ",")
+			deck = append(deck, r)
+		}
+	}
+	return deck, nil
+}
+
+func insertCard(n CardItem, db *sql.DB) error {
+	statement, err := db.Prepare("insert into cards (question, answer) values (?,?)")
+	if err != nil {
+		return err
+	}
 	question := n.Question
 	answer := n.Answer
-	if n.Type == MCQ {
-		answer = strings.Join(n.Options[:], ",")
+	_, err = statement.Exec(question, answer)
+	return nil
+}
+
+func insertMCQ(n MCQItem, db *sql.DB) error {
+	statement, err := db.Prepare("insert into cards (question, answer, options) values (?,?,?)")
+	if err != nil {
+		return err
 	}
-	fmt.Println(question)
-	fmt.Println(answer)
+	question := n.Question
+	answer := n.Answer
+	options := strings.Join(n.Options[:], ",")
+	_, err = statement.Exec(question, answer, options)
 	return nil
 }
