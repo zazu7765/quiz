@@ -70,6 +70,7 @@ func openDeck(n string) (*sql.DB, Quiz, error) {
 }
 
 func parseDeck(db *sql.DB, q Quiz) ([]ItemInterface, error) {
+	count := 0
 	var deck []ItemInterface
 	switch q {
 	case Card:
@@ -77,6 +78,7 @@ func parseDeck(db *sql.DB, q Quiz) ([]ItemInterface, error) {
 		if err != nil {
 			return nil, err
 		}
+
 		for rows.Next() {
 			var r CardItem
 			err = rows.Scan(&r.Question, &r.Answer)
@@ -84,6 +86,7 @@ func parseDeck(db *sql.DB, q Quiz) ([]ItemInterface, error) {
 				return nil, err
 			}
 			deck = append(deck, r)
+			count++
 		}
 	case MCQ:
 		rows, err := db.Query("select question, options, answer from cards")
@@ -99,7 +102,11 @@ func parseDeck(db *sql.DB, q Quiz) ([]ItemInterface, error) {
 			}
 			r.Options = strings.Split(optionsString, ",")
 			deck = append(deck, r)
+			count++
 		}
+	}
+	if count < 1 {
+		return deck, sql.ErrNoRows
 	}
 	return deck, nil
 }
