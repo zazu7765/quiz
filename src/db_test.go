@@ -132,37 +132,22 @@ func TestInsertMCQ(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)
 	defer db.Close()
-	tables := []struct {
-		name     string
-		mcq      MCQItem
-		result   sql.Result
-		expected error
-	}{
-		{
-			name: "success",
-			mcq: MCQItem{
-				Question: "What is the capital of France?",
-				Answer:   "Paris",
-				Options:  []string{"Paris", "London", "Berlin", "Rome"},
-			},
-			result:   sqlmock.NewResult(1, 1),
-			expected: nil,
-		},
+	mcq := MCQItem{
+		Question: "What is the capital of France?",
+		Answer:   "Paris",
+		Options:  []string{"Paris", "London", "Berlin", "Rome"},
 	}
-	for _, table := range tables {
-		t.Run(table.name, func(t *testing.T) {
-			joined := strings.Join(table.mcq.Options[:], ",")
-			mock.ExpectPrepare("insert into cards").
-				ExpectExec().
-				WithArgs(table.mcq.Question, table.mcq.Answer, joined).
-				WillReturnResult(sqlmock.NewResult(1, 1))
-			err = insertMCQ(table.mcq, db)
-			assert.Equal(t, table.expected, err)
-			err = mock.ExpectationsWereMet()
-			assert.NoError(t, err)
-		})
-	}
+	joined := strings.Join(mcq.Options[:], ",")
+	mock.ExpectPrepare("insert into cards").
+		ExpectExec().
+		WithArgs(mcq.Question, mcq.Answer, joined).
+		WillReturnResult(sqlmock.NewResult(1, 1))
+	err = insertMCQ(mcq, db)
+	assert.NoError(t, err)
+	err = mock.ExpectationsWereMet()
+	assert.NoError(t, err)
 }
+
 func TestInsertMCQFailure(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)
