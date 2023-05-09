@@ -25,23 +25,6 @@ func TestQuizEnums(t *testing.T) {
 	}
 }
 
-//	func TestParseMCQDeck(t *testing.T) {
-//		db, mock, err := sqlmock.New()
-//		if err != nil {
-//			t.Errorf("Error opening stub database: %s", err)
-//		}
-//		defer db.Close()
-//		rows := sqlmock.NewRows([]string{"id", "question", "options", "answer"}).AddRow(1, "test question 1", "option1, option2, option3", "option2")
-//		mock.ExpectQuery("select question, options, answer from cards").WillReturnRows(rows)
-//		_, err = parseDeck(db, MCQ)
-//		if err != nil {
-//			t.Errorf("Error running test: %s", err)
-//		}
-//
-//		if err := mock.ExpectationsWereMet(); err != nil {
-//			t.Errorf("Unfulfilled Expectations: %s", err)
-//		}
-//	}
 func TestParseDeck(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)
