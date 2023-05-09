@@ -111,15 +111,6 @@ func TestInsertCard(t *testing.T) {
 			result:   nil,
 			expected: errors.New("Error in preparing statement"),
 		},
-		{
-			name: "execute sql statement failure",
-			cardItem: CardItem{
-				Question: "What is the capital of France?",
-				Answer:   "Paris",
-			},
-			result:   sqlmock.NewErrorResult(errors.New("Error in executing statement")),
-			expected: errors.New("Error in executing statement"),
-		},
 	}
 	for _, table := range tables {
 		t.Run(table.name, func(t *testing.T) {

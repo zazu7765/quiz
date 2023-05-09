@@ -119,6 +119,9 @@ func insertCard(n CardItem, db *sql.DB) error {
 	question := n.Question
 	answer := n.Answer
 	_, err = statement.Exec(question, answer)
+	if err != nil {
+		return errors.New("Error in preparing statement")
+	}
 	return nil
 }
 
