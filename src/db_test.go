@@ -2,10 +2,12 @@ package main
 
 import (
 	"database/sql"
+	"errors"
+	"testing"
+
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"testing"
 )
 
 func TestQuizEnums(t *testing.T) {
@@ -76,6 +78,59 @@ func TestParseDeck(t *testing.T) {
 			assert.Equal(t, test.err, err)
 			assert.Equal(t, test.items, items)
 			assert.NoError(t, mock.ExpectationsWereMet())
+		})
+	}
+}
+
+func TestInsertCard(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer db.Close()
+
+	tables := []struct {
+		name     string
+		cardItem CardItem
+		result   sql.Result
+		expected error
+	}{
+		{
+			name: "success",
+			cardItem: CardItem{
+				Question: "What is the capital of France?",
+				Answer:   "Paris",
+			},
+			result:   sqlmock.NewResult(1, 1),
+			expected: nil,
+		},
+		{
+			name: "prepare sql statement failure",
+			cardItem: CardItem{
+				Question: "What is the capital of France?",
+				Answer:   "Paris",
+			},
+			result:   nil,
+			expected: errors.New("Error in preparing statement"),
+		},
+		{
+			name: "execute sql statement failure",
+			cardItem: CardItem{
+				Question: "What is the capital of France?",
+				Answer:   "Paris",
+			},
+			result:   sqlmock.NewErrorResult(errors.New("Error in executing statement")),
+			expected: errors.New("Error in executing statement"),
+		},
+	}
+	for _, table := range tables {
+		t.Run(table.name, func(t *testing.T) {
+			mock.ExpectPrepare("insert into cards").
+				ExpectExec().
+				WithArgs(table.cardItem.Question, table.cardItem.Answer).
+				WillReturnResult(table.result)
+			err := insertCard(table.cardItem, db)
+			assert.Equal(t, table.expected, err)
+			err = mock.ExpectationsWereMet()
+			assert.NoError(t, err)
 		})
 	}
 }
