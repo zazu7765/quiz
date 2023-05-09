@@ -128,11 +128,14 @@ func insertCard(n CardItem, db *sql.DB) error {
 func insertMCQ(n MCQItem, db *sql.DB) error {
 	statement, err := db.Prepare("insert into cards (question, answer, options) values (?,?,?)")
 	if err != nil {
-		return err
+		return errors.New("Error in preparing statement")
 	}
 	question := n.Question
 	answer := n.Answer
 	options := strings.Join(n.Options[:], ",")
 	_, err = statement.Exec(question, answer, options)
+	if err != nil {
+		return errors.New("Error in preparing statement")
+	}
 	return nil
 }
