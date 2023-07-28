@@ -38,9 +38,9 @@ func createDeck(n string, t Quiz) error {
 		return err
 	}
 	if t == MCQ {
-		db.Exec("CREATE TABLE cards (id INT primary key, question TEXT not null, options TEXT not null, answer TEXT not null);")
+		db.Exec("CREATE TABLE cards (question TEXT not null, options TEXT not null, answer TEXT not null);")
 	} else if t == Card {
-		db.Exec("CREATE TABLE cards (id INT primary key, question TEXT not null, answer TEXT not null);")
+		db.Exec("CREATE TABLE cards (question TEXT not null, answer TEXT not null);")
 	}
 	defer db.Close()
 	return nil
@@ -74,14 +74,14 @@ func parseDeck(db *sql.DB, q Quiz) ([]ItemInterface, error) {
 	var deck []ItemInterface
 	switch q {
 	case Card:
-		rows, err := db.Query("select question, answer from cards")
+		rows, err := db.Query("select rowid, question, answer from cards")
 		if err != nil {
 			return nil, err
 		}
 
 		for rows.Next() {
 			var r CardItem
-			err = rows.Scan(&r.Question, &r.Answer)
+			err = rows.Scan(&r.BaseItem.id, &r.Question, &r.Answer)
 			if err != nil {
 				return nil, err
 			}
@@ -89,14 +89,14 @@ func parseDeck(db *sql.DB, q Quiz) ([]ItemInterface, error) {
 			count++
 		}
 	case MCQ:
-		rows, err := db.Query("select question, options, answer from cards")
+		rows, err := db.Query("select rowid, question, options, answer from cards")
 		if err != nil {
 			return nil, err
 		}
 		for rows.Next() {
 			var r MCQItem
 			var optionsString string
-			err = rows.Scan(&r.Question, &optionsString, &r.Answer)
+			err = rows.Scan(&r.BaseItem.id, &r.Question, &optionsString, &r.Answer)
 			if err != nil {
 				return nil, err
 			}
@@ -138,4 +138,25 @@ func insertMCQ(n MCQItem, db *sql.DB) error {
 		return errors.New("Error in preparing statement")
 	}
 	return nil
+}
+
+func retrieveCard(id int, db *sql.DB) (CardItem, error) {
+	statement, err := db.Prepare("select * from cards where rowid=?")
+	if err != nil {
+		return CardItem{}, errors.New("Error preparing statement")
+	}
+	defer statement.Close()
+	row := statement.QueryRow(id)
+	var c CardItem
+	err = row.Scan(&c.id, &c.Question, &c.Answer)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return CardItem{}, errors.New("Card not found")
+		}
+		return CardItem{}, err
+	}
+	return c, nil
+}
+func retrieveMCQ(id int, db *sql.DB) (MCQItem, error) {
+	return MCQItem{}, nil
 }

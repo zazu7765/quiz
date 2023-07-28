@@ -3,7 +3,6 @@ package main
 import (
 	"database/sql"
 	"errors"
-	"fmt"
 	"strings"
 	"testing"
 
@@ -42,23 +41,23 @@ func TestParseDeck(t *testing.T) {
 	}{
 		{
 			q: Card,
-			rows: sqlmock.NewRows([]string{"question", "answer"}).
-				AddRow("What is the capital of France?", "Paris").
-				AddRow("What is the tallest mountain in the world?", "Mount Everest"),
+			rows: sqlmock.NewRows([]string{"id", "question", "answer"}).
+				AddRow(0, "What is the capital of France?", "Paris").
+				AddRow(1, "What is the tallest mountain in the world?", "Mount Everest"),
 			items: []ItemInterface{
-				CardItem{Question: "What is the capital of France?", Answer: "Paris"},
-				CardItem{Question: "What is the tallest mountain in the world?", Answer: "Mount Everest"},
+				CardItem{BaseItem: BaseItem{id: 0}, Question: "What is the capital of France?", Answer: "Paris"},
+				CardItem{BaseItem: BaseItem{id: 1}, Question: "What is the tallest mountain in the world?", Answer: "Mount Everest"},
 			},
 			err: nil,
 		},
 		{
 			q: MCQ,
-			rows: sqlmock.NewRows([]string{"question", "options", "answer"}).
-				AddRow("What is the capital of France?", "Paris,London,Berlin,Rome", "Paris").
-				AddRow("What is the tallest mountain in the world?", "Mount Kilimanjaro,Mount Everest,K2,Mont Blanc", "Mount Everest"),
+			rows: sqlmock.NewRows([]string{"id", "question", "options", "answer"}).
+				AddRow(0, "What is the capital of France?", "Paris,London,Berlin,Rome", "Paris").
+				AddRow(1, "What is the tallest mountain in the world?", "Mount Kilimanjaro,Mount Everest,K2,Mont Blanc", "Mount Everest"),
 			items: []ItemInterface{
-				MCQItem{Question: "What is the capital of France?", Options: []string{"Paris", "London", "Berlin", "Rome"}, Answer: "Paris"},
-				MCQItem{Question: "What is the tallest mountain in the world?", Options: []string{"Mount Kilimanjaro", "Mount Everest", "K2", "Mont Blanc"}, Answer: "Mount Everest"},
+				MCQItem{BaseItem: BaseItem{id: 0}, Question: "What is the capital of France?", Options: []string{"Paris", "London", "Berlin", "Rome"}, Answer: "Paris"},
+				MCQItem{BaseItem: BaseItem{id: 1}, Question: "What is the tallest mountain in the world?", Options: []string{"Mount Kilimanjaro", "Mount Everest", "K2", "Mont Blanc"}, Answer: "Mount Everest"},
 			},
 			err: nil,
 		},
@@ -132,39 +131,99 @@ func TestInsertMCQ(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)
 	defer db.Close()
-	mcq := MCQItem{
-		Question: "What is the capital of France?",
-		Answer:   "Paris",
-		Options:  []string{"Paris", "London", "Berlin", "Rome"},
+
+	tables := []struct {
+		name     string
+		mcqItem  MCQItem
+		result   sql.Result
+		expected error
+	}{
+		{
+			name: "success",
+			mcqItem: MCQItem{
+				Question: "What is the capital of France?",
+				Answer:   "Paris",
+				Options:  []string{"Paris", "London", "Berlin", "Rome"},
+			},
+			result:   sqlmock.NewResult(1, 1),
+			expected: nil,
+		},
+		{
+			name: "failure",
+			mcqItem: MCQItem{
+				Question: "What is the capital of France?",
+				Answer:   "Paris",
+				Options:  []string{"Paris", "London", "Berlin", "Rome"},
+			},
+			result:   nil,
+			expected: errors.New("Error in preparing statement"),
+		},
 	}
-	joined := strings.Join(mcq.Options[:], ",")
-	mock.ExpectPrepare("insert into cards").
-		ExpectExec().
-		WithArgs(mcq.Question, mcq.Answer, joined).
-		WillReturnResult(sqlmock.NewResult(1, 1))
-	err = insertMCQ(mcq, db)
-	assert.NoError(t, err)
-	err = mock.ExpectationsWereMet()
-	assert.NoError(t, err)
+	for _, table := range tables {
+		t.Run(table.name, func(t *testing.T) {
+			joined := strings.Join(table.mcqItem.Options[:], ",")
+			mock.ExpectPrepare("insert into cards").
+				ExpectExec().
+				WithArgs(table.mcqItem.Question, table.mcqItem.Answer, joined).
+				WillReturnResult(table.result)
+			err := insertMCQ(table.mcqItem, db)
+			assert.Equal(t, table.expected, err)
+			err = mock.ExpectationsWereMet()
+			assert.NoError(t, err)
+		})
+	}
 }
 
-func TestInsertMCQFailure(t *testing.T) {
+func TestRetrieveCard(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)
 	defer db.Close()
-
-	q := MCQItem{
-		Question: "What is the capital of France?",
-		Answer:   "Paris",
-		Options:  []string{"Paris", "London", "Berlin", "Rome"},
+	tables := []struct {
+		name          string
+		id            int
+		eCard         CardItem
+		eError        bool
+		ePrepareError error
+		eQueryError   error
+	}{
+		{name: "success",
+			id: 0,
+			eCard: CardItem{
+				BaseItem: BaseItem{id: 0},
+				Question: "What is the capital of France?",
+				Answer:   "Paris",
+			},
+			eError:        false,
+			ePrepareError: nil,
+			eQueryError:   nil,
+		},
+		{name: "failure",
+			id:       999,
+			eCard:    CardItem{},
+			eError: true,
+			ePrepareError: nil,
+			eQueryError: sql.ErrNoRows,
+		},
 	}
-
-	mock.ExpectPrepare("insert into cards (question, answer, options) values (?,?,?)").
-		ExpectExec().
-		WithArgs(q.Question, q.Answer, "Paris, London, Berlin, Rome").
-		WillReturnError(fmt.Errorf("something went wrong"))
-
-	err = insertMCQ(q, db)
-	require.Error(t, err)
-	assert.EqualError(t, err, "Error in preparing statement")
+	for _, table := range tables {
+		t.Run(table.name, func(t *testing.T) {
+			mock.ExpectPrepare("select .* from cards where rowid=?").WillReturnError(table.ePrepareError)
+			if !table.eError{
+			rows := sqlmock.NewRows([]string{"rowid", "question", "answer"}).AddRow(table.eCard.id, table.eCard.Question, table.eCard.Answer)
+			mock.ExpectQuery("select .* from cards where rowid=?").WithArgs(table.id).WillReturnRows(rows)
+			}else{
+				mock.ExpectQuery("select .* from cards where rowid=?").WithArgs(table.id).WillReturnError(table.eQueryError)
+			}
+			card, err := retrieveCard(table.id, db)
+			if table.eError{
+				require.Error(t, err)
+				require.Empty(t, card, "Expected card to be empty")
+			}else{
+				require.NoError(t, err)
+				require.Equal(t, table.eCard, card)
+			}
+			err = mock.ExpectationsWereMet()
+			require.NoError(t, err)
+		})
+	}
 }

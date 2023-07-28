@@ -6,16 +6,20 @@ import (
 	"os"
 	"path/filepath"
 )
-
+type BaseItem struct{
+	id int
+}
 type ItemInterface interface {
 }
 type CardItem struct {
 	ItemInterface
+	BaseItem
 	Question string
 	Answer   string
 }
 type MCQItem struct {
 	ItemInterface
+	BaseItem
 	Question string
 	Options  []string
 	Answer   string
@@ -57,8 +61,8 @@ func main() {
 						}
 					}
 				}
-				defer db.Close()
 			}
+			defer db.Close()
 		}
 	}
 	// TODO: continue flow here
