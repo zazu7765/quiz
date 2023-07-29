@@ -8,7 +8,6 @@ import (
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 func TestQuizEnums(t *testing.T) {
@@ -22,15 +21,13 @@ func TestQuizEnums(t *testing.T) {
 	}
 	for _, table := range tables {
 		str := table.q.String()
-		if str != table.s {
-			t.Errorf("Enum of %T was incorrect, got %s instead of %s", table.q, str, table.s)
-		}
+		assert.Equal(t, table.s, str)
 	}
 }
 
 func TestParseDeck(t *testing.T) {
 	db, mock, err := sqlmock.New()
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	defer db.Close()
 
 	tests := []struct {
@@ -85,7 +82,7 @@ func TestParseDeck(t *testing.T) {
 
 func TestInsertCard(t *testing.T) {
 	db, mock, err := sqlmock.New()
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	defer db.Close()
 
 	tables := []struct {
@@ -129,7 +126,7 @@ func TestInsertCard(t *testing.T) {
 
 func TestInsertMCQ(t *testing.T) {
 	db, mock, err := sqlmock.New()
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	defer db.Close()
 
 	tables := []struct {
@@ -176,7 +173,7 @@ func TestInsertMCQ(t *testing.T) {
 
 func TestRetrieveCard(t *testing.T) {
 	db, mock, err := sqlmock.New()
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	defer db.Close()
 	tables := []struct {
 		name          string
@@ -216,21 +213,21 @@ func TestRetrieveCard(t *testing.T) {
 			}
 			card, err := retrieveCard(table.id, db)
 			if table.eError{
-				require.Error(t, err)
-				require.Empty(t, card, "Expected card to be empty")
+				assert.Error(t, err)
+				assert.Empty(t, card, "Expected card to be empty")
 			}else{
-				require.NoError(t, err)
-				require.Equal(t, table.eCard, card)
+				assert.NoError(t, err)
+				assert.Equal(t, table.eCard, card)
 			}
 			err = mock.ExpectationsWereMet()
-			require.NoError(t, err)
+			assert.NoError(t, err)
 		})
 	}
 }
 
 func TestRetrieveMCQ(t *testing.T) {
 	db, mock, err := sqlmock.New()
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	defer db.Close()
 	tables := []struct {
 		name          string
@@ -271,14 +268,14 @@ func TestRetrieveMCQ(t *testing.T) {
 			}
 			card, err := retrieveMCQ(table.id, db)
 			if table.eError{
-				require.Error(t, err)
-				require.Empty(t, card, "Expected card to be empty")
+				assert.Error(t, err)
+				assert.Empty(t, card, "Expected card to be empty")
 			}else{
-				require.NoError(t, err)
-				require.Equal(t, table.eMCQ, card)
+				assert.NoError(t, err)
+				assert.Equal(t, table.eMCQ, card)
 			}
 			err = mock.ExpectationsWereMet()
-			require.NoError(t, err)
+			assert.NoError(t, err)
 		})
 	}
 }
