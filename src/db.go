@@ -158,5 +158,21 @@ func retrieveCard(id int, db *sql.DB) (CardItem, error) {
 	return c, nil
 }
 func retrieveMCQ(id int, db *sql.DB) (MCQItem, error) {
-	return MCQItem{}, nil
+	statement, err := db.Prepare("select * from cards where rowid=?")
+	if err != nil {
+		return MCQItem{}, errors.New("Error preparing statement")
+	}
+	defer statement.Close()
+	row := statement.QueryRow(id)
+	var mcq MCQItem
+	var optionsString string
+	err = row.Scan(&mcq.id, &mcq.Question, &optionsString, &mcq.Answer)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return MCQItem{}, errors.New("Card not found")
+		}
+		return MCQItem{}, err
+	}
+	mcq.Options = strings.Split(optionsString, ",")
+	return mcq, nil
 }

@@ -227,3 +227,58 @@ func TestRetrieveCard(t *testing.T) {
 		})
 	}
 }
+
+func TestRetrieveMCQ(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer db.Close()
+	tables := []struct {
+		name          string
+		id            int
+		eMCQ         MCQItem
+		eError        bool
+		ePrepareError error
+		eQueryError   error
+	}{
+		{name: "success",
+			id: 0,
+			eMCQ: MCQItem{
+				BaseItem: BaseItem{id: 0},
+				Question: "What is the capital of France?",
+				Answer:   "Paris",
+				Options: []string{"Paris","Berlin","London","Rome"},
+			},
+			eError:        false,
+			ePrepareError: nil,
+			eQueryError:   nil,
+		},
+		{name: "failure",
+			id:       999,
+			eMCQ:    MCQItem{},
+			eError: true,
+			ePrepareError: nil,
+			eQueryError: sql.ErrNoRows,
+		},
+	}
+	for _, table := range tables {
+		t.Run(table.name, func(t *testing.T) {
+			mock.ExpectPrepare("select .* from cards where rowid=?").WillReturnError(table.ePrepareError)
+			if !table.eError{
+				rows := sqlmock.NewRows([]string{"rowid", "question","options", "answer"}).AddRow(table.eMCQ.id, table.eMCQ.Question, strings.Join(table.eMCQ.Options[:],","), table.eMCQ.Answer)
+			mock.ExpectQuery("select .* from cards where rowid=?").WithArgs(table.id).WillReturnRows(rows)
+			}else{
+				mock.ExpectQuery("select .* from cards where rowid=?").WithArgs(table.id).WillReturnError(table.eQueryError)
+			}
+			card, err := retrieveMCQ(table.id, db)
+			if table.eError{
+				require.Error(t, err)
+				require.Empty(t, card, "Expected card to be empty")
+			}else{
+				require.NoError(t, err)
+				require.Equal(t, table.eMCQ, card)
+			}
+			err = mock.ExpectationsWereMet()
+			require.NoError(t, err)
+		})
+	}
+}
