@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	_ "modernc.org/sqlite"
@@ -29,12 +30,14 @@ func (q Quiz) String() string {
 }
 
 func createDeck(n string, t Quiz) error {
-	dbName := ROOT + "/" + t.String() + "_" + n + ".db"
+	dbName := filepath.Join(ROOT,t.String()+"_" + n + ".db")
 	if _, err := os.Stat(dbName); os.IsExist(err) {
 		return errors.New("Quiz already exists")
 	}
+	fmt.Println(dbName)
 	db, err := sql.Open("sqlite", dbName)
 	if err != nil {
+		fmt.Println(err)
 		return err
 	}
 	if t == MCQ {
@@ -42,7 +45,7 @@ func createDeck(n string, t Quiz) error {
 	} else if t == Card {
 		db.Exec("CREATE TABLE cards (question TEXT not null, answer TEXT not null);")
 	}
-	defer db.Close()
+	db.Close()
 	return nil
 }
 
@@ -64,6 +67,7 @@ func openDeck(n string) (*sql.DB, Quiz, error) {
 	_, err = db.Exec("Select * from cards")
 	if err != nil {
 		db.Close()
+		fmt.Println(err)
 		return nil, Undefined, errors.New(fmt.Sprintf("Illegal Database: %s", file))
 	}
 	return db, q, nil

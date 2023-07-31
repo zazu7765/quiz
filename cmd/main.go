@@ -1,12 +1,15 @@
 package main
 
 import (
+	"errors"
 	"fmt"
+	"io/fs"
 	"log"
 	"os"
 	"path/filepath"
 )
-type BaseItem struct{
+
+type BaseItem struct {
 	id int
 }
 type ItemInterface interface {
@@ -27,44 +30,56 @@ type MCQItem struct {
 
 var ROOT string
 
-func main() {
+func findOrCreateDirectory(dir string) ([]fs.DirEntry, error) {
 	home, err := os.UserHomeDir()
 	if err != nil {
-		log.Fatal(err)
-		os.Exit(1)
+		return nil, err
 	}
-	// define root directory for all operations
-	ROOT = home + "/.quiz"
-	if _, err := os.Stat(ROOT); os.IsNotExist(err) {
-		os.Mkdir(ROOT, 0750)
+	ROOT = filepath.Join(home, dir)
+	if _, err := os.Stat(ROOT); errors.Is(err, fs.ErrNotExist) {
+		err = os.Mkdir(ROOT, 0750)
+		if err != nil {
+			return nil, err
+		}
 	}
 	files, err := os.ReadDir(ROOT)
+	if err != nil {
+		return files, err
+	}
+	return files, nil
+}
+func checkQuizFiles(files []fs.DirEntry)([]fs.DirEntry, error){
+	var quizzes []fs.DirEntry
 	for _, file := range files {
 		// fmt.Println(file.Name())
 		if filepath.Ext(file.Name()) == ".db" {
 			db, quiz, err := openDeck(file.Name())
 			if err != nil {
-				fmt.Println(err)
+				return quizzes, err
 			} else {
-				items, err := parseDeck(db, quiz)
+				_, err := parseDeck(db, quiz)
 				if err != nil {
-					fmt.Println(err)
+					return quizzes, err
 				} else {
-					for _, i := range items {
-						switch item := i.(type) {
-						case CardItem:
-							fmt.Println(item.Question)
-						case MCQItem:
-							fmt.Println(item.Question)
-						default:
-							fmt.Printf("type: %T\n", item)
-						}
-					}
+					quizzes = append(quizzes, file)
 				}
 			}
 			defer db.Close()
 		}
 	}
+	return quizzes, nil
+}
+func main() {
+	_, err := findOrCreateDirectory(".quiz")
+	if err != nil {
+		log.Fatal("Error creating $HOME/.quiz folder or inaccessible filesystem permissions")
+	}
+	// FILES, err := checkQuizFiles(dirFiles)
+	// if err!=nil{
+	// 	fmt.Println(err)
+	// 	log.Fatal("Error checking for available quizzes!")
+	// }
+	// fmt.Println(fmt.Sprintln("Files:", FILES))
 	// TODO: continue flow here
 	// test1 := CardItem{
 	// 	Question: "Question 1",
@@ -75,12 +90,20 @@ func main() {
 	// 	Answer:   "Option 1",
 	// 	Options:  []string{"Option 1", "Option 2", "Option 3"},
 	// }
+	err = createDeck("questions", Card)
+	if err !=nil{
+		fmt.Println(err)
+	}
 	// card_db, _, err := openDeck("CRD_questions.db")
 	// if err != nil {
 	// 	fmt.Println(err)
 	// }
 	// err = insertCard(test1, card_db)
 	// if err != nil {
+	// 	fmt.Println(err)
+	// }
+	// err = createDeck("flashcards", MCQ)
+	// if err !=nil{
 	// 	fmt.Println(err)
 	// }
 	// mcq_db, _, err := openDeck("MCQ_flashcards.db")
