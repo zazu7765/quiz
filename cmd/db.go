@@ -180,3 +180,20 @@ func retrieveMCQ(id int, db *sql.DB) (MCQItem, error) {
 	mcq.Options = strings.Split(optionsString, ",")
 	return mcq, nil
 }
+
+func updateCard(c CardItem, db *sql.DB) error{
+	statement, err := db.Prepare("update cards set question=?, answer=? where rowid = ?")
+	if err!=nil{
+		fmt.Println(err)
+		return errors.New("Error preparing statement");
+	}
+	defer statement.Close()
+	result, err := statement.Exec(c.Question, c.Answer, c.id)
+	if err!=nil{
+		return err
+	}
+	if rowsaffected, _ := result.RowsAffected(); rowsaffected == 0{
+		return errors.New("Card not found")
+	}
+	return nil
+}

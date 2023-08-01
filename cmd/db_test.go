@@ -195,27 +195,27 @@ func TestRetrieveCard(t *testing.T) {
 			eQueryError:   nil,
 		},
 		{name: "failure",
-			id:       999,
-			eCard:    CardItem{},
-			eError: true,
+			id:            999,
+			eCard:         CardItem{},
+			eError:        true,
 			ePrepareError: nil,
-			eQueryError: sql.ErrNoRows,
+			eQueryError:   sql.ErrNoRows,
 		},
 	}
 	for _, table := range tables {
 		t.Run(table.name, func(t *testing.T) {
 			mock.ExpectPrepare("select .* from cards where rowid=?").WillReturnError(table.ePrepareError)
-			if !table.eError{
-			rows := sqlmock.NewRows([]string{"rowid", "question", "answer"}).AddRow(table.eCard.id, table.eCard.Question, table.eCard.Answer)
-			mock.ExpectQuery("select .* from cards where rowid=?").WithArgs(table.id).WillReturnRows(rows)
-			}else{
+			if !table.eError {
+				rows := sqlmock.NewRows([]string{"rowid", "question", "answer"}).AddRow(table.eCard.id, table.eCard.Question, table.eCard.Answer)
+				mock.ExpectQuery("select .* from cards where rowid=?").WithArgs(table.id).WillReturnRows(rows)
+			} else {
 				mock.ExpectQuery("select .* from cards where rowid=?").WithArgs(table.id).WillReturnError(table.eQueryError)
 			}
 			card, err := retrieveCard(table.id, db)
-			if table.eError{
+			if table.eError {
 				assert.Error(t, err)
 				assert.Empty(t, card, "Expected card to be empty")
-			}else{
+			} else {
 				assert.NoError(t, err)
 				assert.Equal(t, table.eCard, card)
 			}
@@ -232,7 +232,7 @@ func TestRetrieveMCQ(t *testing.T) {
 	tables := []struct {
 		name          string
 		id            int
-		eMCQ         MCQItem
+		eMCQ          MCQItem
 		eError        bool
 		ePrepareError error
 		eQueryError   error
@@ -243,39 +243,88 @@ func TestRetrieveMCQ(t *testing.T) {
 				BaseItem: BaseItem{id: 0},
 				Question: "What is the capital of France?",
 				Answer:   "Paris",
-				Options: []string{"Paris","Berlin","London","Rome"},
+				Options:  []string{"Paris", "Berlin", "London", "Rome"},
 			},
 			eError:        false,
 			ePrepareError: nil,
 			eQueryError:   nil,
 		},
 		{name: "failure",
-			id:       999,
-			eMCQ:    MCQItem{},
-			eError: true,
+			id:            999,
+			eMCQ:          MCQItem{},
+			eError:        true,
 			ePrepareError: nil,
-			eQueryError: sql.ErrNoRows,
+			eQueryError:   sql.ErrNoRows,
 		},
 	}
 	for _, table := range tables {
 		t.Run(table.name, func(t *testing.T) {
 			mock.ExpectPrepare("select .* from cards where rowid=?").WillReturnError(table.ePrepareError)
-			if !table.eError{
-				rows := sqlmock.NewRows([]string{"rowid", "question","options", "answer"}).AddRow(table.eMCQ.id, table.eMCQ.Question, strings.Join(table.eMCQ.Options[:],","), table.eMCQ.Answer)
-			mock.ExpectQuery("select .* from cards where rowid=?").WithArgs(table.id).WillReturnRows(rows)
-			}else{
+			if !table.eError {
+				rows := sqlmock.NewRows([]string{"rowid", "question", "options", "answer"}).AddRow(table.eMCQ.id, table.eMCQ.Question, strings.Join(table.eMCQ.Options[:], ","), table.eMCQ.Answer)
+				mock.ExpectQuery("select .* from cards where rowid=?").WithArgs(table.id).WillReturnRows(rows)
+			} else {
 				mock.ExpectQuery("select .* from cards where rowid=?").WithArgs(table.id).WillReturnError(table.eQueryError)
 			}
 			card, err := retrieveMCQ(table.id, db)
-			if table.eError{
+			if table.eError {
 				assert.Error(t, err)
 				assert.Empty(t, card, "Expected card to be empty")
-			}else{
+			} else {
 				assert.NoError(t, err)
 				assert.Equal(t, table.eMCQ, card)
 			}
 			err = mock.ExpectationsWereMet()
 			assert.NoError(t, err)
+		})
+	}
+}
+
+func TestUpdateCard(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	assert.NoError(t, err)
+	defer db.Close()
+	tables := []struct {
+		name      string
+		toUpdate  CardItem
+		eError    bool
+		prepError error
+		result    sql.Result
+	}{
+		{name: "Success",
+			toUpdate: CardItem{
+				BaseItem: BaseItem{id: 1},
+				Question: "Updated Q",
+				Answer:   "Updated A",
+			},
+			eError:    false,
+			prepError: nil,
+			result:    sqlmock.NewResult(1, 1),
+		},
+		{
+			name: "Failure",
+			toUpdate: CardItem{
+				BaseItem: BaseItem{id: 999},
+				Question: "Lorem ipsum",
+				Answer:   "Dolor sit amet",
+			},
+			eError:    true,
+			prepError: nil,
+			result:    sqlmock.NewResult(0, 0),
+		},
+	}
+	for _, table := range tables {
+		t.Run(table.name, func(t *testing.T) {
+			mock.ExpectPrepare("update cards set question=\\?, answer=\\? where rowid = \\?").WillReturnError(table.prepError)
+
+			mock.ExpectExec("update cards set question=\\?, answer=\\? where rowid = \\?").WithArgs(table.toUpdate.Question, table.toUpdate.Answer, table.toUpdate.id).WillReturnResult(table.result)
+			err = updateCard(table.toUpdate, db)
+			if table.eError {
+				assert.Error(t, err)
+			}else{
+				assert.NoError(t, err)
+			}
+			assert.NoError(t, mock.ExpectationsWereMet())
 		})
 	}
 }
