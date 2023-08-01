@@ -70,16 +70,16 @@ func checkQuizFiles(files []fs.DirEntry)([]fs.DirEntry, error){
 	return quizzes, nil
 }
 func main() {
-	_, err := findOrCreateDirectory(".quiz")
+	dirFiles, err := findOrCreateDirectory(".quiz")
 	if err != nil {
 		log.Fatal("Error creating $HOME/.quiz folder or inaccessible filesystem permissions")
 	}
-	// FILES, err := checkQuizFiles(dirFiles)
-	// if err!=nil{
-	// 	fmt.Println(err)
-	// 	log.Fatal("Error checking for available quizzes!")
-	// }
-	// fmt.Println(fmt.Sprintln("Files:", FILES))
+	FILES, err := checkQuizFiles(dirFiles)
+	if err!=nil{
+		fmt.Println(err)
+		log.Fatal("Error checking for available quizzes!")
+	}
+	fmt.Println(fmt.Sprintln("Files:", FILES))
 	// TODO: continue flow here
 	// test1 := CardItem{
 	// 	Question: "Question 1",
@@ -90,10 +90,10 @@ func main() {
 	// 	Answer:   "Option 1",
 	// 	Options:  []string{"Option 1", "Option 2", "Option 3"},
 	// }
-	err = createDeck("questions", Card)
-	if err !=nil{
-		fmt.Println(err)
-	}
+	// err = createDeck("questions", Card)
+	// if err !=nil{
+	// 	fmt.Println(err)
+	// }
 	// card_db, _, err := openDeck("CRD_questions.db")
 	// if err != nil {
 	// 	fmt.Println(err)
