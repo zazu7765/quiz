@@ -48,6 +48,13 @@ func findOrCreateDirectory(dir string) ([]fs.DirEntry, error) {
 	}
 	return files, nil
 }
+func refreshFiles()([]fs.DirEntry, error){
+	files, err := os.ReadDir(ROOT)
+	if err!=nil{
+		return files, err
+	}
+	return files, nil
+}
 func checkQuizFiles(files []fs.DirEntry)([]fs.DirEntry, error){
 	var quizzes []fs.DirEntry
 	for _, file := range files {
@@ -74,12 +81,11 @@ func main() {
 	if err != nil {
 		log.Fatal("Error creating $HOME/.quiz folder or inaccessible filesystem permissions")
 	}
-	FILES, err := checkQuizFiles(dirFiles)
+	_, err = checkQuizFiles(dirFiles)
 	if err!=nil{
 		fmt.Println(err)
 		log.Fatal("Error checking for available quizzes!")
 	}
-	fmt.Println(fmt.Sprintln("Files:", FILES))
 	// TODO: continue flow here
 	// test1 := CardItem{
 	// 	Question: "Question 1",

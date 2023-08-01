@@ -380,3 +380,41 @@ func TestUpdateMCQ(t *testing.T) {
 		})
 	}
 }
+
+func TestDeleteItem(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	assert.NoError(t, err)
+	defer db.Close()
+
+	tables := []struct {
+		Name   string
+		id     int
+		eError bool
+		result sql.Result
+	}{
+		{
+			Name:   "Item Found",
+			id:     1,
+			eError: false,
+			result: sqlmock.NewResult(1, 1),
+		},
+		{
+			Name:   "Item Not Found",
+			id:     999,
+			eError: true,
+			result: sqlmock.NewResult(0, 0),
+		},
+	}
+	for _, table := range tables {
+		t.Run(table.Name, func(t *testing.T) {
+			mock.ExpectPrepare("delete from cards where rowid=\\?").ExpectExec().WithArgs(table.id).WillReturnResult(table.result)
+			err = deleteItem(table.id, db)
+			if table.eError{
+				assert.Error(t,err)
+			}else{
+				assert.NoError(t, err)
+			}
+			assert.NoError(t, mock.ExpectationsWereMet())
+		})
+	}
+}

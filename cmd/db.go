@@ -213,3 +213,19 @@ func updateMCQ(c MCQItem, db *sql.DB) error{
 	}
 	return nil
 }
+
+func deleteItem(id int, db *sql.DB) error{
+	statement, err := db.Prepare("delete from cards where rowid=?")
+	if err!=nil{
+		return errors.New("Error preparing statement")
+	}
+	defer statement.Close()
+	result, err := statement.Exec(id)
+	if err!=nil{
+		return err
+	}
+	if rowsaffected, _ := result.RowsAffected(); rowsaffected == 0{
+		return errors.New("Card not found")
+	}
+	return nil
+}
