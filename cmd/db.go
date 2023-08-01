@@ -184,11 +184,27 @@ func retrieveMCQ(id int, db *sql.DB) (MCQItem, error) {
 func updateCard(c CardItem, db *sql.DB) error{
 	statement, err := db.Prepare("update cards set question=?, answer=? where rowid = ?")
 	if err!=nil{
-		fmt.Println(err)
 		return errors.New("Error preparing statement");
 	}
 	defer statement.Close()
 	result, err := statement.Exec(c.Question, c.Answer, c.id)
+	if err!=nil{
+		return err
+	}
+	if rowsaffected, _ := result.RowsAffected(); rowsaffected == 0{
+		return errors.New("Card not found")
+	}
+	return nil
+}
+
+func updateMCQ(c MCQItem, db *sql.DB) error{
+	statement, err := db.Prepare("update cards set question=?, answer=?, options=? where rowid = ?")
+	if err!=nil{
+		return errors.New("Error preparing statement");
+	}
+	defer statement.Close()
+	options := strings.Join(c.Options[:], ",")
+	result, err := statement.Exec(c.Question, c.Answer, options, c.id)
 	if err!=nil{
 		return err
 	}

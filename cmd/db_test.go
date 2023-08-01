@@ -321,7 +321,59 @@ func TestUpdateCard(t *testing.T) {
 			err = updateCard(table.toUpdate, db)
 			if table.eError {
 				assert.Error(t, err)
-			}else{
+			} else {
+				assert.NoError(t, err)
+			}
+			assert.NoError(t, mock.ExpectationsWereMet())
+		})
+	}
+}
+
+func TestUpdateMCQ(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	assert.NoError(t, err)
+	defer db.Close()
+	tables := []struct {
+		name      string
+		toUpdate  MCQItem
+		eError    bool
+		prepError error
+		result    sql.Result
+	}{
+		{name: "Success",
+			toUpdate: MCQItem{
+				BaseItem: BaseItem{id: 1},
+				Question: "Updated Q",
+				Answer:   "Updated A",
+				Options:  []string{"one", "two", "three"},
+			},
+			eError:    false,
+			prepError: nil,
+			result:    sqlmock.NewResult(1, 1),
+		},
+		{
+			name: "Failure",
+			toUpdate: MCQItem{
+				BaseItem: BaseItem{id: 999},
+				Question: "Lorem ipsum",
+				Answer:   "Dolor sit amet",
+				Options:  []string{"one", "two", "three"},
+			},
+			eError:    true,
+			prepError: nil,
+			result:    sqlmock.NewResult(0, 0),
+		},
+	}
+	for _, table := range tables {
+		t.Run(table.name, func(t *testing.T) {
+			mock.ExpectPrepare("update cards set question=\\?, answer=\\?, options=\\? where rowid = \\?").WillReturnError(table.prepError)
+
+			options := strings.Join(table.toUpdate.Options[:], ",")
+			mock.ExpectExec("update cards set question=\\?, answer=\\?, options=\\? where rowid = \\?").WithArgs(table.toUpdate.Question, table.toUpdate.Answer, options, table.toUpdate.id).WillReturnResult(table.result)
+			err = updateMCQ(table.toUpdate, db)
+			if table.eError {
+				assert.Error(t, err)
+			} else {
 				assert.NoError(t, err)
 			}
 			assert.NoError(t, mock.ExpectationsWereMet())
